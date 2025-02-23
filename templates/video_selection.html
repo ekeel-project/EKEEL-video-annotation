@@ -1,0 +1,278 @@
+{% extends "layout.html" %}
+{% set active_page = "video_annotation" %}
+  <head>
+
+      {% block head %}
+          {{ super() }}
+          <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles/form_video.css') }}"/>
+          <script src="https://kit.fontawesome.com/11e33f488a.js" crossorigin="anonymous"></script>
+
+      {% endblock %}
+
+
+
+  </head>
+  <body>
+    {% block navbar %}{{ super() }}{% endblock %}
+    {% block body %}
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      <!-- Categories: success (green), info (blue), warning (yellow), danger (red) -->
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible" role="alert">
+          <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+          <!-- <strong>Title</strong> --> {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+          
+    <div>
+      <div class="container" id="backgroundLoading" style="display:none;margin-top: 2%">
+        <div class="text-center" style="margin-top: 4%">
+            <p class="titleLower"> The annotator is loading.. </p>
+          <div class="spinner-border text-primary" role="status">
+            <span class="sr-only">Loading...</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="container" id="videoSelectionTextContainer" style="margin-top: 10px; max-width:unset; width:60vw">
+        <div class="row">
+          <div class="col">
+              <p class="title"> Video Annotation Selection  </p>
+          </div>
+          <div class="col">
+            <button type="button" class="btn btn-lg btn-dodgerblue btn-primary float-right" data-toggle="modal" data-target="#addVideoModal">
+              + Add Video
+            </button>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col">
+              <p class="titleLower"> Select a video</p>
+          </div>
+          <!-- <div class="col" title="before starting the manual annotator wait for the video segmentation to finish: this could result in keyframes based on slides show up">
+            <label class="titleLower" style="font-size: 1.2rem;"> wait for segmentation
+              <input type="checkbox" id="waitSegmentationCheckbox"></input>
+            </label>
+          </div> -->
+          <div class="input-group rounded searchbar col">
+            <input type="search" class="form-control rounded" autocomplete="off" placeholder="Search" aria-label="Search"
+              aria-describedby="search-addon" id="searchbar" onkeyup="search_video()"/>
+            <span class="input-group-text border-0" id="search-addon" style="color: dodgerblue;">
+              <i class="fas fa-search"></i>
+            </span>
+          </div>
+        </div>
+
+        <div id="videos" class="center_selection" style="margin-top: 2%;">
+          <div class="creators-container">
+            {% for creator, vids in videos|groupby('creator') %}
+            <div class="creator-group">
+              <h3 style="color: #343a40;">{{ creator }}</h3>
+              <hr>
+              {% for vid in vids|sort(attribute='title') %}
+              <label class="video_radio" video="{{ vid.video_id }}">
+                <input type="radio" name="video" value="{{ vid.video_id }}" id="{{ vid.video_id }}">
+                <div class="btn-container">
+                  {% if (vid.my_annotation_status != "None") %}
+                    <button class="btn-expanding top left erase" title="remove your annotations on this video" onclick="deleteAnnotation('{{ vid.video_id }}')">
+                      <i class="fa-solid fa-eraser icon"></i>
+                      <span class="label">Unannotate</span>
+                    </button>
+                  {% else %}
+                    <span class="spacer"></span>
+                  {% endif %}
+                  <button class="btn-expanding top right delete" title="Delete this video and all associated annotations" onclick="deleteVideo('{{ vid.video_id }}')">
+                    <span class="checkmark">&#9932;</span>
+                    <span class="label">Delete</span>
+                  </button>
+                </div>
+                <img src="https://img.youtube.com/vi/{{ vid.video_id }}/hqdefault.jpg" video="{{ vid.video_id }}">
+                <div class="status-container">
+                  {% if vid.my_annotation_status == "In Progress" %}
+                    <button class="btn-expanding bottom left" title="edit your annotation of this video" onclick="editYourAnnotation('{{ vid.video_id }}')">
+                      <i class="fa-solid fa-pen-to-square icon"></i>
+                      <span class="label">Edit your</span>
+                    </button>
+                    <button class="btn-expanding bottom right" title="edit the most recent annotation of this video" onclick="editLastAnnotation('{{ vid.video_id }}')">
+                      <span class="icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="8 8 84 84" width="20" height="20">
+                          <path fill="white" d="m20.418 50c0-16.34 13.242-29.582 29.582-29.582s29.582 13.242 29.582 29.582-13.242 29.582-29.582 
+                          29.582-29.582-13.242-29.582-29.582zm29.582-37.082c-20.48 0-37.082 16.602-37.082 37.082s16.602 37.082 37.082 37.082 37.082-16.602 
+                          37.082-37.082-16.602-37.082-37.082-37.082zm3.75 20.414c0-2.0703-1.6797-3.75-3.75-3.75s-3.75 1.6797-3.75 3.75v11.492c0 4.3086 
+                          1.7109 8.4414 4.7578 11.488l4.6758 4.6719c1.4609 1.4648 3.8359 1.4648 5.3008 0s1.4648-3.8398 0-5.3008l-4.6719-4.6758c-1.6406-1.6406-2.5625-3.8633-2.5625-6.1836z" 
+                          fill-rule="evenodd" stroke="white" stroke-width="3"/>
+                        </svg>
+                      </span>
+                      <span class="label">Edit last</span>
+                    </button>
+                  {% elif vid.my_annotation_status == "Completed" %}
+                    <button class="btn-expanding bottom left completed" title="edit your annotation of this video" onclick="editYourAnnotation('{{ vid.video_id }}')">
+                      <i class="fa-solid fa-pen-to-square icon"></i>
+                      <span class="label">Edit your</span>
+                    </button>
+                    <button class="btn-expanding bottom right" title="edit the most recent annotation of this video" onclick="editLastAnnotation('{{ vid.video_id }}')">
+                      <span class="icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="8 8 84 84" width="20" height="20">
+                          <path fill="white" d="m20.418 50c0-16.34 13.242-29.582 29.582-29.582s29.582 13.242 29.582 29.582-13.242 29.582-29.582 
+                          29.582-29.582-13.242-29.582-29.582zm29.582-37.082c-20.48 0-37.082 16.602-37.082 37.082s16.602 37.082 37.082 37.082 37.082-16.602 
+                          37.082-37.082-16.602-37.082-37.082-37.082zm3.75 20.414c0-2.0703-1.6797-3.75-3.75-3.75s-3.75 1.6797-3.75 3.75v11.492c0 4.3086 
+                          1.7109 8.4414 4.7578 11.488l4.6758 4.6719c1.4609 1.4648 3.8359 1.4648 5.3008 0s1.4648-3.8398 0-5.3008l-4.6719-4.6758c-1.6406-1.6406-2.5625-3.8633-2.5625-6.1836z" 
+                          fill-rule="evenodd" stroke="white" stroke-width="3"/>
+                        </svg>
+                      </span>
+                      <span class="label">Edit last</span>
+                    </button>
+                  {% elif vid.my_annotation_status == "None" %}
+                    {% if vid.has_annotation == "True" %}
+                      <span></span>
+                      <button class="btn-expanding bottom right" title="edit the most recent annotation of this video" onclick="editLastAnnotation('{{ vid.video_id }}')">
+                        <span class="icon">
+                          <svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="8 8 84 84" width="20" height="20">
+                            <path fill="white" d="m20.418 50c0-16.34 13.242-29.582 29.582-29.582s29.582 13.242 29.582 29.582-13.242 29.582-29.582 
+                            29.582-29.582-13.242-29.582-29.582zm29.582-37.082c-20.48 0-37.082 16.602-37.082 37.082s16.602 37.082 37.082 37.082 37.082-16.602 
+                            37.082-37.082-16.602-37.082-37.082-37.082zm3.75 20.414c0-2.0703-1.6797-3.75-3.75-3.75s-3.75 1.6797-3.75 3.75v11.492c0 4.3086 
+                            1.7109 8.4414 4.7578 11.488l4.6758 4.6719c1.4609 1.4648 3.8359 1.4648 5.3008 0s1.4648-3.8398 0-5.3008l-4.6719-4.6758c-1.6406-1.6406-2.5625-3.8633-2.5625-6.1836z" 
+                            fill-rule="evenodd" stroke="white" stroke-width="3"/>
+                          </svg>
+                        </span>
+                        <span class="label">Edit last</span>
+                      </button>
+                    {% else %}
+                      <!-- Placeholder to maintain alignment -->
+                      <span></span>
+                    {% endif %}
+                  {% endif %}
+                </div>
+                  <p class="video_title" video="{{ vid.video_id }}">{{ vid.title }}</p>
+              </label>
+              {% endfor %}
+            </div>
+            {% endfor %}
+          </div>
+      
+        </div>
+      </div>
+    </div>
+    
+
+    
+
+
+
+<!-- Modal add video -->
+<div class="modal fade" id="addVideoModal" tabindex="-1" role="dialog"
+     aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+    <div class="modal-content" style="background-color: #f8f9fa;">
+      <div class="modal-header">
+
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+
+
+      <div class="modal-body" style="height:300px;">
+        <div id="frontPopupWindowTextContainer">
+          <h5 class="title" id="conceptsModalLabel" style="margin-top: 2%">Add YouTube Url</h5>
+              <br>
+              <form method="POST" id="urlForm">
+                {{ form.csrf_token }}
+                 <div class="form-group">
+                   {{ form.url(class_='form-control', autocomplete="off", id="youtube_url")}}
+                   {{ form.annotator(class_='form-control', autocomplete="off", id="annotator")}}
+                 </div>
+              <button type="submit" class="btn btn-dodgerblue float-right">
+                  Add Video & Start Annotation
+              </button>
+              </form>
+        </div>
+        <div class="container" id="loadingInForwardWindow" style="display:none; margin-top: 12%">
+            <div class="text-center" style="margin-top: 4%">
+               <p class="titleLower"> The video is being downloaded and analyzed... </p>
+              <div class="spinner-border text-primary" role="status">
+                <span class="sr-only">Loading...</span>
+              </div>
+            </div>
+        </div>
+      </div>
+      <!--<div class="modal-footer" id="stopAndCloseButtonsFooter">
+        <button type="button" id="breakButton" class="btn btn-secondary" title="send stop signal to segmentation algorithm" style="display: none;">Stop Segmentation</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>-->
+    </div>
+  </div>
+</div>
+  {% endblock %}
+</body>
+
+
+
+{% block scripts %}
+<!--<script src="../static/search_video.js"></script>-->
+<script type="text/javascript" src="https://andywer.github.io/jquery-dim-background/jquery.dim-background.min.js"></script>
+<script src="{{ url_for('static', filename='search_video.js') }}"></script>
+<script src="{{ url_for('static', filename='autocomplete.js') }}"></script>
+
+<script>
+
+    bgDarknessOnOverlay = .8
+
+    document.getElementById("annotator").value = "self"
+
+    function addVideoLoading(){
+        document.getElementById("videos").style.display = "none"
+        // background loading can be shown but it's not pretty with the front loading scene
+        //document.getElementById("backgroundLoading").style.display = "none"
+        document.getElementById("addVideoModal").style.display = "block"
+        document.getElementById("videoSelectionTextContainer").style.display = "none"
+        
+        document.getElementById("frontPopupWindowTextContainer").style.display = "none"
+        document.getElementById("loadingInForwardWindow").style.display = "block"
+        //document.getElementById("stopAndCloseButtonsFooter").style.justifyContent = "space-between"
+        //document.getElementById("breakButton").style.display = "block"
+        
+    }
+
+    $('#addVideoModal').on('shown.bs.modal', function () {
+        if (document.getElementById('frontPopupWindowTextContainer').style.display !== 'none') {
+            document.getElementById('youtube_url').focus();
+        }
+    });
+
+    $("#urlForm").submit(function() {
+      addVideoLoading()
+    });
+
+    async function selectVideoLoading(){
+      document.getElementById("videoSelectionTextContainer").style.display = "none"
+      document.getElementById("backgroundLoading").style.display = "block"
+    }
+
+    $(".video_radio").click(function(e) {
+        if ($(e.target).closest('.btn-expanding').length)
+          return;
+        e.preventDefault();
+        editYourAnnotation(this.getAttribute("video"));
+    });
+
+    function editYourAnnotation(video_id){
+      selectVideoLoading();
+      document.getElementById("youtube_url").value = "https://www.youtube.com/watch?v=" + video_id
+      document.getElementById("urlForm").submit();
+    }
+
+    function editLastAnnotation(video_id){
+      selectVideoLoading();
+      document.getElementById("youtube_url").value = "https://www.youtube.com/watch?v=" + video_id
+      document.getElementById("annotator").value = "last"
+      document.getElementById("urlForm").submit();
+    }
+
+</script>
+{% endblock %}

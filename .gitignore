@@ -1,0 +1,13 @@
+# ignoring output folders
+__*
+
+# ignoring models that can be downloaded
+*.tflite
+
+# ignoring env files
+*.env
+
+# To keep the source code clean, we will ignore the following files
+_*/**/*.json
+_*/**/*.csv
+_*/**/*.txt
